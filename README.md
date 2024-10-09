@@ -18,14 +18,14 @@ A simple Streamlit app for our dashboard.
    $ streamlit run streamlit_app.py
    ```
 
-Task Delegation: 
+# Task Delegation: 
 - [ ] Sirjan and Pratyush: Sentiment Analysis
 - [ ] Ishaq : Stocks
 - [ ] Balaji : ??
 - [ ] Suhas : ??
 - [ ] Rohit : ??
 
-# Overall Structure:
+## Overall Structure:
 ![Screenshot_20241009_174510](https://github.com/user-attachments/assets/dcf3398d-02da-4063-988f-168227d09adb)
 
 These are the various subsections to be covered:
