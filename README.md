@@ -17,3 +17,9 @@ A simple Streamlit app for our dashboard.
    ```
    $ streamlit run streamlit_app.py
    ```
+
+Task Delegation: 
+- [ ] Sirjan and Pratyush: Sentiment Analysis Score =>
+      - [ ] Sentiment Score for different Sectors
+      - [ ] Show most impactful news 
+- [ ] Ishaq : 
