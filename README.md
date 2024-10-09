@@ -25,10 +25,15 @@ Task Delegation:
 - [ ] Suhas : ??
 - [ ] Rohit : ??
 
+# Overall Structure:
+![Screenshot_20241009_174510](https://github.com/user-attachments/assets/dcf3398d-02da-4063-988f-168227d09adb)
+
 These are the various subsections to be covered:
 ### Stocks
 - [ ] Stock wise various scores like internal conflicts, popularity amongst retail investors
+
 ### Sentiment Analysis
 - [ ] Sentiment Score for various sectors
 - [ ] Social Media Sentiment
 - [ ] Section for most important news
+      
