@@ -9,6 +9,9 @@ import json
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
+from PortfolioAnalyser import PortfolioAnalyser, Engine
+import io
+import sys
 
 # Page configuration
 st.set_page_config(page_title="Equity Research Agent", layout="wide")
@@ -328,6 +331,25 @@ def show_portfolio_analysis():
                     """, unsafe_allow_html=True)
             
             st.markdown(f"### Total Portfolio Value: ₹{total_value:,.2f}")
+
+            # Portfolio analysis
+            st.markdown("### Portfolio Analysis")
+            stocks = list(portfolio.keys())
+            weights = list(portfolio.values())
+            
+            portfolio = Engine(
+                start_date="2024-04-01",
+                portfolio=stocks,
+                weights=weights
+            )
+
+            buffer = io.StringIO()
+            sys.stdout = buffer
+            PortfolioAnalyser(portfolio, report=True)
+            sys.stdout = sys.__stdout__
+
+            analyser_output = buffer.getvalue()
+            st.markdown(f"```{analyser_output}```")
         else:
             st.warning("Please enter at least one stock in your portfolio.")
 
