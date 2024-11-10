@@ -12,6 +12,7 @@ from langchain_anthropic import ChatAnthropic
 from PortfolioAnalyser import PortfolioAnalyser, Engine
 import io
 import sys
+import base64
 
 # Page configuration
 st.set_page_config(page_title="Equity Research Agent", layout="wide")
@@ -336,7 +337,8 @@ def show_portfolio_analysis():
             st.markdown("### Portfolio Analysis")
             stocks = list(portfolio.keys())
             weights = list(portfolio.values())
-            
+
+            st.markdown("Start date: 2023-04-01")
             portfolio = Engine(
                 start_date="2024-04-01",
                 portfolio=stocks,
@@ -350,6 +352,17 @@ def show_portfolio_analysis():
 
             analyser_output = buffer.getvalue()
             st.markdown(f"```{analyser_output}```")
+
+            # View report PDF
+            # Opening file from file path
+            with open("report.pdf", "rb") as f:
+                base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+
+            # Embedding PDF in HTML
+            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="800" height="800" type="application/pdf"></iframe>'
+            
+            # Displaying File
+            st.markdown(pdf_display, unsafe_allow_html=True)
         else:
             st.warning("Please enter at least one stock in your portfolio.")
 
