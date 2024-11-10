@@ -27,6 +27,7 @@ from pypfopt import (           # Used to optimize the portfolio
     HRPOpt,
     objective_functions,
 )
+from news_database_interface import interface
 
 warnings.filterwarnings("ignore")
 logging.getLogger('matplotlib.font_manager').disabled = True
@@ -66,6 +67,16 @@ CS = [
           "#cccdff",
           "#fad6ff",
       ]
+
+aspects = [
+    "Earnings",
+    "Revenue",
+    "Margins",
+    "Dividend",
+    "EBITDA",
+    "Debt",
+    "Sentiment"
+    ]
 
 class Engine:
     def __init__(
@@ -313,8 +324,8 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
     except Exception as e:
         pass
 
-    print("Start date: " + str(my_portfolio.start_date))
-    print("End date: " + str(my_portfolio.end_date))
+    # print("Start date: " + str(my_portfolio.start_date))
+    # print("End date: " + str(my_portfolio.end_date))
 
     benchmark = get_returns(
         my_portfolio.benchmark,
@@ -331,30 +342,30 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
     CAGR = cagr(returns, period='daily', annualization=None)
     CAGR = round(CAGR * 100, 2)
     CAGR = CAGR.tolist()
-    CAGR = str(CAGR[0]) + "%"
+    CAGR = str(CAGR) + "%"
 
     CUM = cum_returns(returns, starting_value=0, out=None) * 100
     CUM = CUM.iloc[-1]
     CUM = round(CUM, 2)
     CUM = CUM.tolist()
-    CUM = str(CUM[0]) + "%"
+    CUM = str(CUM) + "%"
 
     VOL = qs.stats.volatility(returns, annualize=True)
     VOL = round(VOL * 100, 2)
     VOL = VOL.tolist()
-    VOL = str(VOL[0]) + "%"
+    VOL = str(VOL) + "%"
 
     SR = qs.stats.sharpe(returns, rf=rf)
     SR = round(SR, 2)
     SR = SR.tolist()
-    SR = str(SR[0])
+    SR = str(SR)
 
     PortfolioAnalyser.SR = SR
 
     CR = qs.stats.calmar(returns)
     CR = round(CR, 2)
     CR = CR.tolist()
-    CR = str(CR[0])
+    CR = str(CR)
 
     PortfolioAnalyser.CR = CR
 
@@ -364,28 +375,23 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
 
     MD = max_drawdown(returns, out=None)
     MD = round(MD * 100, 2)
-    MD = MD.tolist()
-    MD = str(MD[0]) + "%"
-
-    """OR = omega_ratio(returns, risk_free=0.0, required_return=0.0)
-    OR = round(OR,2)
-    OR = str(OR)
-    print(OR)"""
+    # MD = MD.tolist()
+    MD = str(MD) + "%"
 
     SOR = sortino_ratio(returns, required_return=0, period='daily')
     SOR = round(SOR, 2)
-    SOR = SOR.tolist()
-    SOR = str(SOR[0])
+    # SOR = SOR.tolist()
+    SOR = str(SOR)
 
     SK = qs.stats.skew(returns)
     SK = round(SK, 2)
-    SK = SK.tolist()
-    SK = str(SK[0])
+    # SK = SK.tolist()
+    SK = str(SK)
 
     KU = qs.stats.kurtosis(returns)
     KU = round(KU, 2)
-    KU = KU.tolist()
-    KU = str(KU[0])
+    # KU = KU.tolist()
+    KU = str(KU)
 
     TA = tail_ratio(returns)
     TA = round(TA, 2)
@@ -393,35 +399,31 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
 
     CSR = qs.stats.common_sense_ratio(returns)
     CSR = round(CSR, 2)
-    CSR = CSR.tolist()
-    CSR = str(CSR[0])
+    # CSR = CSR.tolist()
+    CSR = str(CSR)
 
     VAR = qs.stats.value_at_risk(
         returns, sigma=sigma_value, confidence=confidence_value
     )
     VAR = np.round(VAR, 2)
     VAR = VAR.tolist()
-    VAR = str(VAR[0] * 100) + " %"
+    VAR = str(VAR * 100) + " %"
 
     alpha, beta = alpha_beta(returns, benchmark, risk_free=rf)
     AL = round(alpha, 2)
     BTA = round(beta, 2)
 
-    def condition(x):
-        return bool(x)
-
-    win = sum(condition(x) for x in returns)
-    total = len(returns)
-    win_ratio = win / total
-    win_ratio = win_ratio * 100
-    win_ratio = round(win_ratio, 2)
+    win_ratio = qs.stats.win_rate(returns)
+    win_ratio = round(win_ratio * 100, 2)
+    # win_ratio = win_ratio.tolist()
+    win_ratio = str(win_ratio)
 
     IR = calculate_information_ratio(returns, benchmark.iloc[:, 0])
     IR = round(IR, 2)
-    IR = IR.tolist()
-    IR = str(IR[0])
+    # IR = IR.tolist()
+    IR = str(IR)
 
-    AS1, AS2, AS3 = get_aspects(my_portfolio.portfolio)
+    ABSA = get_aspects(my_portfolio)
 
     data = {
         "": [
@@ -442,9 +444,13 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
             "Daily value at risk",
             "Alpha",
             "Beta",
-            "Aspect 1 SR",
-            "Aspect 2 SR",
-            "Aspect 3 SR",
+            "Earnings Sentiment Score",
+            "Revenue Sentiment Score",
+            "Margins Sentiment Score",
+            "Dividend Sentiment Score",
+            "EBITDA Sentiment Score",
+            "Debt Sentiment Score",
+            "Overall Sentiment Score",
         ],
         "Backtest Results": [
             CAGR,
@@ -464,9 +470,13 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
             VAR,
             AL,
             BTA,
-            AS1,
-            AS2,
-            AS3,
+            ABSA["Earnings"],
+            ABSA["Revenue"],
+            ABSA["Margins"],
+            ABSA["Dividend"],
+            ABSA["EBITDA"],
+            ABSA["Debt"],
+            ABSA["Sentiment"]
         ],
     }
 
@@ -486,11 +496,11 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
     df.style.set_properties(
         **{"background-color": "white", "color": "black", "border-color": "black"}
     )
-    display(df)
+    # display(df)
 
     PortfolioAnalyser.df = data
 
-    my_color = np.where(returns >= 0, (0,0,1), (0.5, 0.5, 0.5))
+    my_color = np.where(returns >= 0, "blue", "grey")
     ret = plt.figure(figsize=(30, 8))
     plt.vlines(x=returns.index, ymin=0, ymax=returns, color=my_color, alpha=0.4)
     plt.title("Returns")
@@ -515,9 +525,13 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
     PortfolioAnalyser.VAR = VAR
     PortfolioAnalyser.AL = AL
     PortfolioAnalyser.BTA = BTA
-    PortfolioAnalyser.AS1 = AS1
-    PortfolioAnalyser.AS2 = AS2
-    PortfolioAnalyser.AS3 = AS3
+    PortfolioAnalyser.Earnings = ABSA["Earnings"]
+    PortfolioAnalyser.Revenue = ABSA["Revenue"]
+    PortfolioAnalyser.Margins = ABSA["Margins"]
+    PortfolioAnalyser.Dividend = ABSA["Dividend"]
+    PortfolioAnalyser.EBITDA = ABSA["EBITDA"]
+    PortfolioAnalyser.Debt = ABSA["Debt"]
+    PortfolioAnalyser.Sentiment = ABSA["Sentiment"]
 
     try:
         PortfolioAnalyser.orderbook = make_rebalance.output
@@ -550,17 +564,19 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
       qs.plots.rolling_sharpe(returns)
       qs.plots.rolling_beta(returns, benchmark)
       graph_opt(my_portfolio.portfolio, wts, pie_size=7, font_size=14)
+      plot_sentiment(my_portfolio)
 
     else:
       qs.plots.returns(returns, benchmark, cumulative=True, savefig="retbench.png", show=False),
       qs.plots.yearly_returns(returns, benchmark, savefig="y_returns.png", show=False),
       qs.plots.monthly_heatmap(returns, benchmark, savefig="heatmap.png", show=False),
-    #   qs.plots.drawdown(returns, savefig="drawdown.png", show=False),
-    #   qs.plots.drawdowns_periods(returns, savefig="d_periods.png", show=False),
+      qs.plots.drawdown(returns, savefig="drawdown.png", show=False),
+      qs.plots.drawdowns_periods(returns, savefig="d_periods.png", show=False),
       qs.plots.rolling_volatility(returns, savefig="rvol.png", show=False),
       qs.plots.rolling_sharpe(returns, savefig="rsharpe.png", show=False),
       qs.plots.rolling_beta(returns, benchmark, savefig="rbeta.png", show=False),
       graph_opt(my_portfolio.portfolio, wts, pie_size=10, font_size=14, save=True)
+      plot_sentiment(my_portfolio)
       pdf = FPDF()
       pdf.add_page()
       pdf.set_font("arial", "B", 14)
@@ -598,9 +614,13 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
       pdf.cell(20, 7, f"Daily value at risk: " + str(VAR), ln=1)
       pdf.cell(20, 7, f"Alpha: " + str(AL), ln=1)
       pdf.cell(20, 7, f"Beta: " + str(BTA), ln=1)
-      pdf.cell(20, 7, f"Aspect 1 SR: " + str(AS1), ln=1)
-      pdf.cell(20, 7, f"Aspect 2 SR: " + str(AS2), ln=1)
-      pdf.cell(20, 7, f"Aspect 3 SR: " + str(AS3), ln=1)
+      pdf.cell(20, 7, f"Earnings Sentiment Score: " + str(ABSA["Earnings"]), ln=1)
+      pdf.cell(20, 7, f"Revenue Sentiment Score: " + str(ABSA["Revenue"]), ln=1)
+      pdf.cell(20, 7, f"Margins Sentiment Score: " + str(ABSA["Margins"]), ln=1)
+      pdf.cell(20, 7, f"Dividend Sentiment Score: " + str(ABSA["Dividend"]), ln=1)
+      pdf.cell(20, 7, f"EBITDA Sentiment Score: " + str(ABSA["EBITDA"]), ln=1)
+      pdf.cell(20, 7, f"Debt Sentiment Score: " + str(ABSA["Debt"]), ln=1)
+      pdf.cell(20, 7, f"Overall Sentiment Score: " + str(ABSA["Sentiment"]), ln=1)
 
 
       pdf.image("ret.png", x=-20, y=None, w=250, h=80, type="", link="")
@@ -611,18 +631,20 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
       pdf.cell(20, 7, f"", ln=1)
       pdf.image("heatmap.png", x=None, y=None, w=200, h=80, type="", link="")
       pdf.cell(20, 7, f"", ln=1)
-    #   pdf.image("drawdown.png", x=None, y=None, w=200, h=80, type="", link="")
-    #   pdf.cell(20, 7, f"", ln=1)
-    #   pdf.image("d_periods.png", x=None, y=None, w=200, h=80, type="", link="")
-    #   pdf.cell(20, 7, f"", ln=1)
+      pdf.image("drawdown.png", x=None, y=None, w=200, h=80, type="", link="")
+      pdf.cell(20, 7, f"", ln=1)
+      pdf.image("d_periods.png", x=None, y=None, w=200, h=80, type="", link="")
+      pdf.cell(20, 7, f"", ln=1)
       pdf.image("rvol.png", x=None, y=None, w=190, h=80, type="", link="")
       pdf.cell(20, 7, f"", ln=1)
       pdf.image("rsharpe.png", x=None, y=None, w=190, h=80, type="", link="")
       pdf.cell(20, 7, f"", ln=1)
       pdf.image("rbeta.png", x=None, y=None, w=190, h=80, type="", link="")
+      pdf.cell(20, 7, f"", ln=1)
+      pdf.image("sentiment.png", x=None, y=None, w=200, h=80, type="", link="")
 
       pdf.output(dest="F", name=filename)
-      print("The PDF was generated successfully!")
+    #   print("The PDF was generated successfully!")
 
 
 def flatten(subject) -> list:
@@ -646,8 +668,10 @@ def graph_opt(my_portfolio, my_weights, pie_size, font_size, save=False):
     # plt.show()
 
 
-def equal_weighting(my_portfolio) -> list:
-    return [1.0 / len(my_portfolio.portfolio)] * len(my_portfolio.portfolio)
+def normalize_weights(my_portfolio) -> list:
+    total = sum(my_portfolio.weights)
+    return [x / total for x in my_portfolio.weights]
+
 
 def efficient_frontier(my_portfolio, perf=True) -> list:
     # changed to take in desired timeline, the problem is that it would use all historical data
@@ -814,7 +838,7 @@ def optimize_portfolio(my_portfolio, vol_max=25, pie_size=5, font_size=14):
         raise Exception("You didn't define any optimizer in your portfolio!")
     returns1 = get_returns(
         my_portfolio.portfolio,
-        equal_weighting(my_portfolio),
+        my_portfolio.weights,
         start_date=my_portfolio.start_date,
         end_date=my_portfolio.end_date,
     )
@@ -870,7 +894,7 @@ def optimize_portfolio(my_portfolio, vol_max=25, pie_size=5, font_size=14):
     h2, l2 = ax2.get_legend_handles_labels()
 
     plt.legend(l1 + l2, loc=2)
-    # plt.show()
+    plt.show()
 
 
 def check_schedule(rebalance) -> bool:
@@ -923,11 +947,92 @@ def get_date_range(start_date, end_date, rebalance) -> list:
     # then we want to return those dates
     return rebalance_dates
 
-def get_aspects(portfolio) -> list:
-    ''' Gets sentiment scores for each aspect for each asset in the portfolio'''
-    # Connect with sirjan and PK's API  to get the sentiment scores for each aspect
-    return [0.5, 0.6, 0.7]
+def get_aspects(my_portfolio) -> dict:
+    obj = interface.NewsDatabase()
+    stocks = my_portfolio.portfolio
+    weights = normalize_weights(my_portfolio)
+    results = {}
+    for aspect in aspects:
+        results[aspect] = 0
+    for i in range(len(stocks)):
+        stock = stocks[i]
+        weight = weights[i]
+        values = obj.get_values_by_ticker(stock)
+        for aspect in aspects:
+            results[aspect] += weight * values[aspect]
+    return results
 
+def get_NIFTY_sentiment() -> float:
+    NIFTY_50_ratios = {
+        "ITC.NS" : 3.03,
+        "TCS.NS" : 4.91,
+        "ICICIBANK.NS" : 6.90,
+        "HDFCBANK.NS" : 8.10,
+        "KOTAKBANK.NS" : 3.51,
+        "BAJAJFINSV.NS" : 1.20,
+        "RELIANCE.NS" : 12.86,
+        "INFY.NS" : 7.66,
+        "HINDUNILVR.NS" : 2.67,
+        "AXISBANK.NS" : 2.57,
+        "SBIN.NS" : 2.54,
+        "BAJFINANCE.NS" : 2.37,
+        "LT.NS" : 2.74,
+        "MARUTI.NS" : 1.37,
+        "TATASTEEL.NS" : 1.37,
+        "SUNPHARMA.NS" : 1.34,
+        "M&M.NS" : 1.18,
+        "TECHM.NS" : 1.05,
+        "NESTLEIND.NS" : 0.87,
+        "ONGC.NS" : 0.78,
+        "DIVISLAB.NS" : 0.77,
+        "ASIANPAINT.NS" : 1.95,
+        "BHARTIARTL.NS" : 2.33,
+        "HCLTECH.NS" : 1.53,
+        "TITAN.NS" : 1.37,
+        "POWERGRID.NS" : 1.04,
+        "COALINDIA.NS" : 0.51,
+        "WIPRO.NS" : 1.01,
+        "NTPC.NS" : 0.99,
+        "ULTRACEMCO.NS" : 1.02,
+        "EICHERMOT.NS" : 0.49,
+        "INDUSINDBK.NS" : 0.85,
+        "HINDALCO.NS" : 0.94,
+        "TATAMOTORS.NS" : 1.05,
+        "JSWSTEEL.NS" : 0.94,
+        "BPCL.NS" : 0.46,
+        "HDFCLIFE.NS" : 0.72,
+        "SHREECEM.NS" : 0.46,
+        "GRASIM.NS" : 0.85,
+        "BAJAJ-AUTO.NS" : 0.65,
+        "ADANIPORTS.NS" : 0.82,
+        "CIPLA.NS" : 0.68,
+        "DRREDDY.NS" : 0.67,
+        "TATACONSUM.NS" : 0.66,
+        "HDFCBANK.NS" : 8.10,
+        "APOLLOHOSP.NS" : 0.61,
+        "UPL.NS" : 0.60,
+        "SBILIFE.NS" : 0.65,
+        "HEROMOTOCO.NS" : 0.43,
+        "BRITANNIA.NS" : 0.52,
+    }
+
+    sentiment = 0
+    obj = interface.NewsDatabase()
+    for stock in NIFTY_50_ratios.keys():
+        sentiment += obj.get_values_by_ticker(stock)["Sentiment"] * (NIFTY_50_ratios[stock] / 100)
+    return sentiment
+
+def plot_sentiment(my_portfolio) -> None:
+    sentiment = get_aspects(my_portfolio)["Sentiment"]
+    nifty_sentiment = get_NIFTY_sentiment()
+    # Plot a bar graph comparing sentiment and NIFTY sentiment
+    plt.figure(figsize=(10, 5))
+    plt.bar(["Portfolio", "NIFTY 50"], [sentiment, nifty_sentiment], color=["#4D8BBB", "#F9DE86"])
+    plt.title("Sentiment Analysis")
+    plt.ylabel("Sentiment Score")
+    plt.savefig("sentiment.png")
+    pass
+    
 def make_rebalance(
     start_date,
     end_date,
