@@ -6,18 +6,22 @@ from datetime import datetime, timedelta
 import requests
 import os
 from bs4 import BeautifulSoup
-import json
 from langchain_groq import ChatGroq
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 import googleapiclient.discovery
-import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import os
 import numpy as np
 from datetime import datetime
 from IPython.display import display, HTML
+
+from PortfolioAnalyser import PortfolioAnalyser, Engine
+import base64
+# Import the interface for the news database
+from news_database_interface import interface
+
+# Load news database
+obj = interface.NewsDatabase()
+database_1, database_2 = obj.to_dataframe()
 
 # Page configuration
 st.set_page_config(page_title="Equity Research Agent", layout="wide")
@@ -214,12 +218,13 @@ def get_balance_sheet(symbol):
         return None
 
 def init_chat_model(model_name):
-    if model_name == "OpenAI":
-        return ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"])
-    elif model_name == "Anthropic":
-        return ChatAnthropic(anthropic_api_key=st.secrets["ANTHROPIC_API_KEY"])
-    elif model_name == "Groq":
-        return ChatGroq(api_key=st.secrets["GROQ_API_KEY"])
+    # Uncomment and adjust the following lines if you have these models and API keys
+    # if model_name == "OpenAI":
+    #     return ChatOpenAI(openai_api_key=st.secrets["OPENAI_API_KEY"])
+    # elif model_name == "Anthropic":
+    #     return ChatAnthropic(anthropic_api_key=st.secrets["ANTHROPIC_API_KEY"])
+    # elif model_name == "Groq":
+    #     return ChatGroq(api_key=st.secrets["GROQ_API_KEY"])
     return None
 
 def show_dashboard():
@@ -240,7 +245,10 @@ def show_dashboard():
                                                  close=nifty_data['Close'])])
             fig.update_layout(height=400)
             st.plotly_chart(fig, use_container_width=True)
+            print("Error --- ")
+
         except Exception as e:
+            print("Error --- ")
             st.error(f"Error loading NIFTY chart: {str(e)}")
         
         # YouTube Videos Section
@@ -318,123 +326,151 @@ def show_equity_report():
                 
                 # Stock Metrics Dashboard
                 st.subheader("Stock Metrics Dashboard")
+                
+                # Custom CSS for enhanced styling
+                st.markdown("""
+                    <style>
+                    .metric-card {
+                        background-color: #f0f2f6;
+                        padding: 20px;
+                        border-radius: 10px;
+                        text-align: center;
+                        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+                        margin-bottom: 10px;
+                    }
+                    .metric-title {
+                        color: #333;
+                        font-size: 20px;
+                        font-weight: 600;
+                        margin-bottom: 10px;
+                    }
+                    .metric-value {
+                        font-size: 30px;
+                        font-weight: 700;
+                    }
+                    .positive { color: #4caf50; } /* Green for positive values */
+                    .negative { color: #e53935; } /* Red for negative values */
+                    </style>
+                    """, unsafe_allow_html=True)
+
                 try:
-                    # Read stock data from CSV
-                    csv_path = os.path.join('stock_data_output', f"{symbol}_data.csv")
-                    df = pd.read_csv(csv_path)
-                    for col in df.columns:
-                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                    # Normalize symbols
+                    database_2['stock_symbol'] = database_2['stock_symbol'].str.strip().str.upper()
+                    symbol_normalized = symbol.strip().upper()
                     
-                    metrics = {col: df.loc[df[col] != 0, col].mean() for col in ['Earnings', 'Sentiment', 'Margins', 'Debt', 'Revenue', 'Dividend', 'EBITDA']}
+                    # Filter data
+                    df = database_2[database_2['stock_symbol'] == symbol_normalized]
                     
-                    # Display Metric Cards
-                    metric_cols = st.columns(3)
-                    with metric_cols[0]:
-                        st.metric(
-                            "Sentiment Score",
-                            f"{metrics['Sentiment']*100:.2f}%",
-                            delta=f"{metrics['Sentiment']*100:.1f}%"
-                        )
-                    with metric_cols[1]:
-                        st.metric(
-                            "Earnings Growth",
-                            f"{metrics['Earnings']*100:.2f}%",
-                            delta=f"{metrics['Earnings']*100:.1f}%"
-                        )
-                    with metric_cols[2]:
-                        st.metric(
-                            "Revenue Growth",
-                            f"{metrics['Revenue']*100:.2f}%",
-                            delta=f"{metrics['Revenue']*100:.1f}%"
-                        )
-                    
-                    # Create subplots for dashboard
-                    fig = make_subplots(
-                        rows=4, cols=1,
-                        subplot_titles=('Metrics Timeline', ' ', 'Growth Metrics', 'Performance Indicators'),
-                        specs=[
-                            [{"type": "scatter"}],
-                            [{"type": "indicator"}],
-                            [{"type": "bar"}],
-                            [{"type": "bar"}]
-                        ],
-                        vertical_spacing=0.15,
-                        row_heights=[0.25, 0.35, 0.2, 0.2]
-                    )
-                    
-                    # Add metrics timeline
-                    for col in ['Earnings', 'Revenue', 'EBITDA']:
-                        fig.add_trace(
-                            go.Scatter(
-                                y=df[col],
-                                name=col,
-                                mode='lines+markers'
-                            ),
-                            row=1, col=1
-                        )
-                    
-                    # Add market sentiment gauge
-                    fig.add_trace(
-                        go.Indicator(
-                            mode="gauge+number",
-                            value=metrics['Sentiment'] * 100,
-                            title={'text': "Market Sentiment"},
-                            gauge={
-                                'axis': {'range': [-100, 100]},
-                                'bar': {'color': "darkblue"},
-                                'steps': [
-                                    {'range': [-100, 0], 'color': "lightgray"},
-                                    {'range': [0, 100], 'color': "lightblue"}
-                                ],
-                                'threshold': {
-                                    'line': {'color': "red", 'width': 4},
-                                    'thickness': 0.75,
-                                    'value': metrics['Sentiment'] * 100
+                    # Check if df is empty
+                    if df.empty:
+                        st.warning(f"No data available for {symbol}")
+                    else:
+                        # Convert columns to numeric
+                        numeric_cols = ['Earnings', 'Revenue', 'Margins', 'Dividend', 'EBITDA', 'Debt', 'Sentiment']
+                        for col in numeric_cols:
+                            df[col] = pd.to_numeric(df[col], errors='coerce')
+                        # Remove rows with all zeros or NaNs
+                        df = df.dropna(subset=numeric_cols, how='all')
+                        
+                        # Compute metrics
+                        metrics = {}
+                        for col in numeric_cols:
+                            valid_data = df.loc[df[col].notnull() & (df[col] != 0), col]
+                            metrics[col] = valid_data.mean() if not valid_data.empty else 0
+                        
+                        # Display Metric Cards with new styling
+                        metric_names = ["Earnings Growth", "Revenue Growth", "Profit Margins", "Debt Ratio"]
+                        metric_keys = ["Earnings", "Revenue", "Margins", "Debt"]
+
+                        cols = st.columns(4)
+                        for i, (name, key) in enumerate(zip(metric_names, metric_keys)):
+                            value = metrics[key] * 100  # Assuming metrics are in decimal form
+                            color_class = "positive" if value >= 0 else "negative"
+                            with cols[i]:
+                                st.markdown(f"""
+                                <div class="metric-card">
+                                    <div class="metric-title">{name}</div>
+                                    <div class="metric-value {color_class}">{value:.2f}%</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                        
+                        # Market Sentiment Gauge (Centered and Semicircular)
+                        st.subheader("Market Sentiment")
+                        fig_sentiment = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=metrics['Sentiment'] * 100,
+                        domain={'x': [0, 1], 'y': [0, 0.5]},  # Display only the top half
+                        gauge={
+                            'axis': {'range': [-100, 100], 'tickwidth': 1, 'tickcolor': "darkblue", 'tickfont': {'size': 15}},
+                            'bar': {'color': "green" if metrics['Sentiment'] >= 0 else "red"},
+                            'bgcolor': "white",
+                            'steps': [
+                                        {'range': [-100, 0], 'color': 'rgba(255, 0, 0, 0.2)'},
+                                        {'range': [0, 100], 'color': 'rgba(0, 255, 0, 0.2)'}
+                                    ],
+                            'threshold': {
+                                        'line': {'color': "black", 'width': 4},
+                                        'thickness': 0.75,
+                                        'value': metrics['Sentiment'] * 100
+                                    }
                                 }
-                            }
-                        ),
-                        row=2, col=1
-                    )
-                    
-                    # Add growth metrics bar chart
-                    fig.add_trace(
-                        go.Bar(
-                            x=['Revenue', 'EBITDA', 'Earnings'],
-                            y=[metrics['Revenue'], metrics['EBITDA'], metrics['Earnings']],
-                            name="Growth Metrics",
-                            marker_color='rgb(255, 99, 132)'
-                        ),
-                        row=3, col=1
-                    )
-                    
-                    # Add performance indicators bar chart
-                    fig.add_trace(
-                        go.Bar(
-                            x=['Margins', 'Dividend', 'Debt'],
-                            y=[metrics['Margins'], metrics['Dividend'], metrics['Debt']],
-                            name="Performance Indicators",
-                            marker_color='rgb(144, 238, 144)'
-                        ),
-                        row=4, col=1
-                    )
-                    
-                    # Update layout
-                    fig.update_layout(
-                        height=1200,
-                        showlegend=True,
-                        template="plotly_white",
-                        margin=dict(t=100, b=50)
-                    )
-                    
-                    # Update y-axes ranges
-                    fig.update_yaxes(range=[-1, 1], row=1, col=1)
-                    fig.update_yaxes(range=[0, 0.15], row=3, col=1)
-                    fig.update_yaxes(range=[0, 0.15], row=4, col=1)
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                except FileNotFoundError:
-                    st.warning(f"Stock metrics data not available for {symbol}")
+                            ))
+
+                        fig_sentiment.update_layout(
+                            height=300,
+                            margin={'t': 5, 'b': 5, 'l': 0, 'r': 0},
+                            showlegend=False,
+                        )
+
+                        st.plotly_chart(fig_sentiment, use_container_width=True)
+
+
+
+                        # Growth Metrics Bar Chart
+                        st.subheader("Growth Metrics")
+                        growth_metrics = ['Earnings', 'Revenue', 'EBITDA']
+                        growth_values = [metrics[col] * 100 for col in growth_metrics]
+                        colors = ['green' if val >= 0 else 'red' for val in growth_values]
+                        fig_growth = go.Figure([go.Bar(
+                            x=growth_metrics,
+                            y=growth_values,
+                            marker_color=colors,
+                            text=[f"{val:.2f}%" for val in growth_values],
+                            textposition='auto'
+                        )])
+                        fig_growth.update_layout(
+                            yaxis_title="Percentage",
+                            xaxis_title="Metrics",
+                            height=400
+                        )
+                        st.plotly_chart(fig_growth, use_container_width=True)
+                        
+                        # Performance Indicators Bar Chart
+                        st.subheader("Performance Indicators")
+                        performance_metrics = ['Margins', 'Dividend', 'Debt']
+                        performance_values = [metrics[col] * 100 for col in performance_metrics]
+                        # For Debt, reverse the color coding
+                        colors = []
+                        for metric, val in zip(performance_metrics, performance_values):
+                            if metric == 'Debt':
+                                color = 'red' if val >= 0 else 'green'
+                            else:
+                                color = 'green' if val >= 0 else 'red'
+                            colors.append(color)
+                        fig_performance = go.Figure([go.Bar(
+                            x=performance_metrics,
+                            y=performance_values,
+                            marker_color=colors,
+                            text=[f"{val:.2f}%" for val in performance_values],
+                            textposition='auto'
+                        )])
+                        fig_performance.update_layout(
+                            yaxis_title="Percentage",
+                            xaxis_title="Indicators",
+                            height=400
+                        )
+                        st.plotly_chart(fig_performance, use_container_width=True)
+                        
                 except Exception as e:
                     st.error(f"Error loading stock metrics: {str(e)}")
                 
@@ -603,11 +639,13 @@ def show_portfolio_analysis():
     if st.button("Analyze Portfolio"):
         if portfolio_data:
             st.subheader("Portfolio Analysis")
+            portfolio = {}
             total_value = 0
             for item in portfolio_data:
                 info = get_stock_info(item['symbol'])
                 if info:
                     current_value = info['current_price'] * item['quantity']
+                    portfolio[str(item['symbol'])] = float(current_value)
                     investment_value = item['buy_price'] * item['quantity']
                     profit_loss = current_value - investment_value
                     total_value += current_value
@@ -622,10 +660,32 @@ def show_portfolio_analysis():
                     """, unsafe_allow_html=True)
             
             st.markdown(f"### Total Portfolio Value: ₹{total_value:,.2f}")
+        
+            stocks = list(portfolio.keys())
+            weights = list(portfolio.values())
+            
+            portfolio = Engine(
+                start_date="2023-04-01",
+                portfolio=stocks,
+                weights=weights
+            )
+
+            PortfolioAnalyser(portfolio, report=True)
+
+            # View report PDF
+            # Opening file from file path
+            with open("report.pdf", "rb") as f:
+                base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+
+            # Embedding PDF in HTML
+            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="800" height="800" type="application/pdf"></iframe>'
+            
+            # Displaying File
+            st.markdown(pdf_display, unsafe_allow_html=True)
         else:
             st.warning("Please enter at least one stock in your portfolio.")
 
-# 7. Sidebar Navigation (ADD THIS BEFORE MAIN CONTENT)
+# Sidebar Navigation
 with st.sidebar:
     st.markdown('<p class="big-font">Navigation</p>', unsafe_allow_html=True)
     
