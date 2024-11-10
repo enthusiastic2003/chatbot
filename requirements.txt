@@ -9,3 +9,15 @@ langchain-openai
 langchain-anthropic
 langchain-groq
 empyrial
+langchain
+langchain-community
+tiktoken
+langchain-nomic
+nomic[local]
+langchain-ollama
+scikit-learn
+langgraph
+tavily-python
+beautifulsoup4
+firebase-admin
+langchain-groq
