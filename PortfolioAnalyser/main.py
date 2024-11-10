@@ -327,27 +327,34 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
     # Ensure both returns and benchmark have the same timezone
     returns.index = returns.index.tz_convert(None)
     benchmark.index = benchmark.index.tz_convert(None)
-
-    print(type(returns))
     
     CAGR = cagr(returns, period='daily', annualization=None)
-    CAGR = str(round(CAGR * 100, 2)) + "%"
+    CAGR = round(CAGR * 100, 2)
+    CAGR = CAGR.tolist()
+    CAGR = str(CAGR[0]) + "%"
 
     CUM = cum_returns(returns, starting_value=0, out=None) * 100
     CUM = CUM.iloc[-1]
-    CUM = str(round(CUM, 2)) + "%"
+    CUM = round(CUM, 2)
+    CUM = CUM.tolist()
+    CUM = str(CUM[0]) + "%"
 
     VOL = qs.stats.volatility(returns, annualize=True)
-    VOL = str(round(VOL * 100, 2)) + " %"
+    VOL = round(VOL * 100, 2)
+    VOL = VOL.tolist()
+    VOL = str(VOL[0]) + "%"
 
     SR = qs.stats.sharpe(returns, rf=rf)
-    SR = np.round(SR, decimals=2)
-    SR = str(SR)
+    SR = round(SR, 2)
+    SR = SR.tolist()
+    SR = str(SR[0])
 
     PortfolioAnalyser.SR = SR
 
     CR = qs.stats.calmar(returns)
-    CR = str(round(CR, 2))
+    CR = round(CR, 2)
+    CR = CR.tolist()
+    CR = str(CR[0])
 
     PortfolioAnalyser.CR = CR
 
@@ -356,7 +363,9 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
     STABILITY = str(STABILITY)
 
     MD = max_drawdown(returns, out=None)
-    MD = str(round(MD * 100, 2)) + " %"
+    MD = round(MD * 100, 2)
+    MD = MD.tolist()
+    MD = str(MD[0]) + "%"
 
     """OR = omega_ratio(returns, risk_free=0.0, required_return=0.0)
     OR = round(OR,2)
@@ -365,15 +374,18 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
 
     SOR = sortino_ratio(returns, required_return=0, period='daily')
     SOR = round(SOR, 2)
-    SOR = str(SOR)
+    SOR = SOR.tolist()
+    SOR = str(SOR[0])
 
     SK = qs.stats.skew(returns)
     SK = round(SK, 2)
-    SK = str(SK)
+    SK = SK.tolist()
+    SK = str(SK[0])
 
     KU = qs.stats.kurtosis(returns)
     KU = round(KU, 2)
-    KU = str(KU)
+    KU = KU.tolist()
+    KU = str(KU[0])
 
     TA = tail_ratio(returns)
     TA = round(TA, 2)
@@ -381,13 +393,15 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
 
     CSR = qs.stats.common_sense_ratio(returns)
     CSR = round(CSR, 2)
-    CSR = str(CSR)
+    CSR = CSR.tolist()
+    CSR = str(CSR[0])
 
     VAR = qs.stats.value_at_risk(
         returns, sigma=sigma_value, confidence=confidence_value
     )
-    VAR = np.round(VAR, decimals=2)
-    VAR = str(VAR * 100) + " %"
+    VAR = np.round(VAR, 2)
+    VAR = VAR.tolist()
+    VAR = str(VAR[0] * 100) + " %"
 
     alpha, beta = alpha_beta(returns, benchmark, risk_free=rf)
     AL = round(alpha, 2)
@@ -404,6 +418,8 @@ def PortfolioAnalyser(my_portfolio, rf=0.0, sigma_value=1, confidence_value=0.95
 
     IR = calculate_information_ratio(returns, benchmark.iloc[:, 0])
     IR = round(IR, 2)
+    IR = IR.tolist()
+    IR = str(IR[0])
 
     AS1, AS2, AS3 = get_aspects(my_portfolio.portfolio)
 
